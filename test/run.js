@@ -14,11 +14,12 @@ let failed = 0;
 function suite(name, cwd, args) {
     console.log('\n=== ' + name + ' ===');
     try {
-        execFileSync('node', args, { cwd, stdio: 'inherit' });
+        execFileSync('node', args, { cwd, stdio: 'inherit', timeout: 300000 });
         console.log('--- ' + name + ': 通过 ---');
     } catch (e) {
         failed++;
-        console.log('--- ' + name + ': 失败 (退出码 ' + e.status + ') ---');
+        const how = e.signal ? ('信号 ' + e.signal) : ('退出码 ' + e.status);
+        console.log('--- ' + name + ': 失败 (' + how + ') ---');
     }
 }
 
@@ -31,7 +32,7 @@ console.log('\n=== Electron selftest ===');
 const shots = path.join(os.tmpdir(), 'miscjar-selftest');
 fs.rmSync(shots, { recursive: true, force: true });
 try {
-    execFileSync('node', [ELECTRON_CLI, '.', '--selftest'], { cwd: GUI, stdio: 'inherit' });
+    execFileSync('node', [ELECTRON_CLI, '.', '--selftest'], { cwd: GUI, stdio: 'inherit', timeout: 240000 });
 } catch (e) {
     failed++;
     console.log('--- Electron selftest: 进程退出码 ' + e.status + ' ---');

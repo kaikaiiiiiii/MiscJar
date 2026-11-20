@@ -64,7 +64,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb libasound2t64 libgbm1 libgtk-3-0t64
+          sudo apt-get install -y --no-install-recommends \
+            xvfb xauth fonts-liberation \
+            libnss3 libnspr4 libasound2t64 libatk1.0-0t64 libatk-bridge2.0-0t64 \
+            libatspi2.0-0t64 libcairo2 libcups2t64 libdbus-1-3 libdrm2 libgbm1 \
+            libglib2.0-0t64 libgtk-3-0t64 libpango-1.0-0 libx11-6 libx11-xcb1 \
+            libxcb1 libxcb-dri3-0 libxcb-present0 libxcb-sync1 libxcomposite1 \
+            libxdamage1 libxext6 libxfixes3 libxkbcommon0 libxrandr2 libxrender1 \
+            libxshmfence1 libxss1 libxi6 libxtst6 libegl1 libgl1
 
       - name: 安装 CLI 依赖
         run: npm ci
@@ -79,11 +86,19 @@ jobs:
 
       - name: 聚合测试（Linux 走虚拟显示）
         if: runner.os == 'Linux'
-        run: xvfb-run -a npm test
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          set -o pipefail
+          xvfb-run -a -s "-screen 0 1280x1024x24" npm test 2>&1 | tee test-output.log
 
       - name: 聚合测试
         if: runner.os != 'Linux'
-        run: npm test
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test-output.log
 
       - name: 打包 ${{ matrix.asset }}
         run: node make-package.js ${{ matrix.platform }} ${{ matrix.arch }}
@@ -106,6 +121,22 @@ jobs:
 
       - name: 验收打包产物（Linux）
         if: runner.os == 'Linux'
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
         run: |
-          xvfb-run -a "gui/dist/MiscJar-${{ matrix.platform }}-${{ matrix.arch }}/MiscJar" --selftest
+          xvfb-run -a -s "-screen 0 1280x1024x24" "gui/dist/MiscJar-${{ matrix.platform }}-${{ matrix.arch }}/MiscJar" --selftest
           node test/check-selftest.js
+
+      # 失败时把测试输出与 selftest 日志转成 annotation, 便于在 Actions 页面/API 直接看到原因
+      - name: 失败诊断
+        if: failure()
+        shell: bash
+        run: |
+          show() {
+            [ -f "$1" ] || return 0
+            tail -n 8 "$1" | sed 's/%/%25/g' | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+          }
+          show test-output.log
+          show "$(node -e "console.log(require('path').join(require('os').tmpdir(),'miscjar-selftest','result.log'))")"
