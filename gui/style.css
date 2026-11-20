@@ -1,0 +1,230 @@
+/* 谜罐 MiscJar — Fluent 2 设计语言
+   自实现 Fluent 2 令牌 (不引入 UI 框架/构建步骤):
+   accent #0f6cbd 系 / 中性灰阶 / 4·8px 圆角 / Segoe UI Variable /
+   分层浅阴影 / 150ms 曲线过渡 / focus ring / overlay 细滚动条 */
+:root {
+    --accent: #0f6cbd;
+    --accent-hover: #115ea3;
+    --accent-pressed: #0c3b5e;
+    --accent-tint: #ebf3fc;
+    --accent-tint-pressed: #d7e8fa;
+    --bg: #f4f4f4;
+    --surface: #ffffff;
+    --stroke: #d1d1d1;
+    --text: #242424;
+    --text-secondary: #616161;
+    --text-disabled: #bdbdbd;
+    --radius-s: 4px;
+    --radius-m: 8px;
+    --shadow-2: 0 1px 2px rgba(0, 0, 0, .13), 0 0 2px rgba(0, 0, 0, .10);
+    --shadow-4: 0 2px 4px rgba(0, 0, 0, .14), 0 0 2px rgba(0, 0, 0, .12);
+    --shadow-8: 0 4px 8px rgba(0, 0, 0, .14), 0 0 2px rgba(0, 0, 0, .12);
+    --curve: cubic-bezier(.33, 0, .67, 1);
+    --duration: 150ms;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    width: 440px;
+    height: 600px;
+    overflow: hidden;
+    font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--text);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* 上部: 名称 (要求 2) — Fluent 2 Display 半粗标题 */
+#name-bar {
+    height: 48px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+}
+
+#name {
+    font-family: "Segoe UI Variable Display", "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    max-width: 416px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 中部: 拖放区 (要求 2) — Fluent 卡片: 四周 16px gutter 距窗口边缘, 叠淡阴影 (shadow-4)
+   表现轻微高于背景; 拖入时 accent 描边 + 半透明纱罩 + 升到 shadow-8。
+   408 + 上下 16px 边距 = 中带总高 440 = 窗口宽, 纵向布局与窗口等宽关系保持。
+   背景 = 项目根 miscJar.png 插画 (随包副本见 package 脚本); surface 兜底, 图片缺失仍是白卡片。 */
+#drop {
+    width: 408px;
+    height: 408px;
+    flex: none;
+    border: 1.5px dashed var(--stroke);
+    border-radius: var(--radius-m);
+    margin: 16px auto;
+    position: relative;
+    background: var(--surface) url("miscJar.png") center / cover no-repeat;
+    box-shadow: var(--shadow-4);
+    transition:
+        border-color var(--duration) var(--curve),
+        background-color var(--duration) var(--curve),
+        box-shadow var(--duration) var(--curve);
+}
+
+/* 拖入悬停的 accent 纱罩: 背景已是插画, 着色改为叠加半透明 tint (z 序在 label 之下) */
+#drop::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--accent-tint);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration) var(--curve);
+}
+
+#drop.over {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-8);
+}
+
+#drop.over::after { opacity: .72; }
+
+#labels {
+    position: absolute;
+    inset: 4px;
+    z-index: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;   /* 滚动条出现/消失时不让内容横跳 */
+}
+
+/* Fluent 2 overlay 滚动条: 细条 + 透明轨道 */
+#labels::-webkit-scrollbar { width: 4px; }
+#labels::-webkit-scrollbar-track { background: transparent; }
+#labels::-webkit-scrollbar-thumb { background: var(--stroke); border-radius: 2px; }
+#labels::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+/* spacer 恒定撑起全部行高: 重建可见行时滚动高度不变, scrollTop 不会被浏览器钳回 0 */
+#list-spacer { position: relative; width: 100%; }
+
+/* label: 左对齐, 宽度至多 204px (拖放区 408 的一半, 保持要求 7 的比例); hover 高亮 (要求 9)
+   Fluent 2 列表条目: 白 surface + 1px 描边 + 浅阴影, hover accent 着色。
+   入场动画只挂在 .enter (条目首次出现, 由 JS 控制) —— 重建/滚动不重播, 否则删除时整列闪烁。
+   top 过渡用于删除时下方行平滑上移; 新建行初始即有 top, 不会触发过渡。 */
+.label {
+    position: absolute;
+    left: 8px;
+    height: 26px;
+    max-width: 204px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    border-radius: var(--radius-s);
+    background: var(--surface);
+    border: 1px solid #e0e0e0;
+    box-shadow: var(--shadow-2);
+    cursor: pointer;
+    transition:
+        top .18s var(--curve),
+        opacity .15s var(--curve),
+        transform .15s var(--curve),
+        background-color var(--duration) var(--curve),
+        border-color var(--duration) var(--curve),
+        box-shadow var(--duration) var(--curve);
+}
+
+.label.enter { animation: label-in .18s var(--curve); }
+
+@keyframes label-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* 删除退场: 淡出 + 微缩, 与下方行的上移同时进行 (Fluent 列表移除的交叉观感) */
+.label.exit {
+    opacity: 0;
+    transform: scale(.96);
+    pointer-events: none;
+}
+
+.label:hover {
+    background: var(--accent-tint);
+    border-color: var(--accent);
+    box-shadow: var(--shadow-4);
+}
+
+.label:active {
+    background: var(--accent-tint-pressed);
+    border-color: var(--accent-hover);
+}
+
+.label .icon { font-size: 14px; flex: none; }
+
+.label .txt {
+    font-size: 12px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 下部: 两个按钮 (要求 2) — Fluent 2 主按钮: accent 底 + hover/pressed 色阶 + focus ring */
+#actions {
+    flex: 1;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+}
+
+#actions button {
+    width: 150px;
+    height: 46px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius-s);
+    cursor: pointer;
+    color: #ffffff;
+    background: var(--accent);
+    box-shadow: var(--shadow-2);
+    transition:
+        background-color var(--duration) var(--curve),
+        box-shadow var(--duration) var(--curve);
+}
+
+#actions button:hover:not(:disabled) {
+    background: var(--accent-hover);
+    box-shadow: var(--shadow-4);
+}
+
+#actions button:active:not(:disabled) {
+    background: var(--accent-pressed);
+    box-shadow: var(--shadow-2);
+}
+
+#actions button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+#actions button:disabled {
+    background: #f0f0f0;
+    color: var(--text-disabled);
+    box-shadow: none;
+    cursor: default;
+}

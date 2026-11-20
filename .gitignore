@@ -1,0 +1,22 @@
+# 依赖
+node_modules/
+
+# 运行时产物
+*.db
+*.zip
+
+# 系统
+.DS_Store
+
+# GUI 构建 / 离线缓存 / 自检产物
+gui/dist/
+gui/.electron-zip/
+gui/selftest/
+
+# GUI 随包资源（prepare-assets.js 从 src/ 与仓库根复制，勿提交）
+gui/codec.js
+gui/zipentry.js
+gui/miscJar.png
+
+# Fluent UI 源码仅作本地样式参考, 不参与构建/运行, 不提交
+gui/vendor/fluentui/

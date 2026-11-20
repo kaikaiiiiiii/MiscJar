@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的 tag（必须已存在于远程，例如 v0.1.0）'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: 构建并发布 Windows 绿色版
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            gui/package-lock.json
+
+      - name: 安装 CLI 依赖
+        run: npm ci
+
+      - name: 安装 GUI 依赖
+        run: npm ci
+        working-directory: gui
+
+      - name: 准备随包资源（codec.js / zipentry.js / 插画）
+        run: node prepare-assets.js
+        working-directory: gui
+
+      - name: 聚合测试（全部通过才继续发布）
+        run: npm test
+
+      - name: 校验 tag 与 package.json 版本一致
+        shell: pwsh
+        run: |
+          $tag = $env:RELEASE_TAG
+          if ($tag -match '^v(\d+\.\d+\.\d+)$') {
+            $expected = $Matches[1]
+          } else {
+            throw "tag 必须形如 v1.2.3，当前为 $tag"
+          }
+          $actual = (Get-Content -Raw package.json | ConvertFrom-Json).version
+          if ($actual -ne $expected) {
+            throw "tag $tag 与 package.json 的 version $actual 不一致"
+          }
+
+      - name: 打包 Windows 绿色版
+        run: npm run package
+        working-directory: gui
+
+      - name: 验收打包产物（打包版 selftest）
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path 'gui\dist\MiscJar-win32-x64\MiscJar.exe').Path
+          $proc = Start-Process -FilePath $exe -ArgumentList '--selftest' -Wait -PassThru
+          if ($proc.ExitCode -ne 0) {
+            throw "打包版 selftest 退出码 $($proc.ExitCode)"
+          }
+          $log = Join-Path $env:TEMP 'miscjar-selftest\result.log'
+          if (-not (Test-Path $log)) {
+            throw "缺少 selftest 结果: $log"
+          }
+          $text = Get-Content -Raw $log
+          $need = @('state0', 'state1', 'state2', 'state3', 'state4', 'state5', '"scrollTop":400', 'rowProbe', 'rows5', 'done')
+          $missing = @($need | Where-Object { -not $text.Contains($_) })
+          if ($missing.Count -gt 0) {
+            throw "result.log 缺少关键断言: $($missing -join ', ')"
+          }
+
+      - name: 生成发布压缩包与 SHA256
+        shell: pwsh
+        run: |
+          $asset = "MiscJar-$env:RELEASE_TAG-win32-x64.zip"
+          Compress-Archive -Path 'gui\dist\MiscJar-win32-x64' -DestinationPath $asset -CompressionLevel Optimal -Force
+          $hash = (Get-FileHash -Path $asset -Algorithm SHA256).Hash.ToLower()
+          "$hash  $asset" | Set-Content -Path 'SHA256SUMS.txt' -Encoding ascii
+          "ASSET=$asset" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: 创建 / 更新 GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $found = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY 2>$null
+          if ($found) {
+            gh release upload $env:RELEASE_TAG $env:ASSET SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --clobber
+          } else {
+            gh release create $env:RELEASE_TAG $env:ASSET SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --title "谜罐 MiscJar $env:RELEASE_TAG" --generate-notes --verify-tag
+          }

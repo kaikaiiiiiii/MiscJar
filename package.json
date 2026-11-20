@@ -1,0 +1,31 @@
+{
+  "name": "miscjar",
+  "version": "0.1.0",
+  "description": "谜罐 MiscJar — 双层压缩包：普通软件只看到第一层的 readme.txt，MiscJar 才能打开第二层。",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaikaiiiiiii/miscJar.git"
+  },
+  "homepage": "https://github.com/kaikaiiiiiii/miscJar#readme",
+  "bugs": {
+    "url": "https://github.com/kaikaiiiiiii/miscJar/issues"
+  },
+  "keywords": [
+    "archive",
+    "zip",
+    "privacy",
+    "hidden",
+    "backup",
+    "electron"
+  ],
+  "engines": {
+    "node": ">=22.15"
+  },
+  "scripts": {
+    "test": "node test/run.js"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.6"
+  }
+}

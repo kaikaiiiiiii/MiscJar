@@ -1,0 +1,20 @@
+{
+  "name": "miscjar-gui",
+  "version": "0.1.0",
+  "description": "谜罐 MiscJar — GUI (Electron), archive format compatible with the CLI",
+  "main": "main.js",
+  "scripts": {
+    "start": "node prepare-assets.js && electron .",
+    "test": "node test/core.test.js",
+    "test:interop": "node test/interop.test.js",
+    "selftest": "node prepare-assets.js && electron . --selftest",
+    "package": "node prepare-assets.js && node make-package.js"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^45.0.0"
+  }
+}

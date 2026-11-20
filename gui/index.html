@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>谜罐 MiscJar</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="name-bar"><span id="name"></span></div>
+    <div id="drop">
+        <!-- 背景为项目根 miscJar.png 插画 (gui/ 内是 package 时拷入的随包副本)。
+             原 SVG logo (造型语义取自 Material Icons "move_to_inbox" 箭头投入收件篮, Apache 2.0,
+             Fluent regular 描边重绘) 已由插画取代 —— 插画本身就承载"投入罐中"的语义。 -->
+        <div id="labels"><div id="list-spacer"></div></div>
+    </div>
+    <div id="actions">
+        <button id="pack" disabled>打包</button>
+        <button id="unpack" disabled>解包</button>
+    </div>
+    <script src="renderer.js"></script>
+</body>
+</html>

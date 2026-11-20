@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: 全量测试（Windows / Node 24）
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            gui/package-lock.json
+
+      - name: 安装 CLI 依赖
+        run: npm ci
+
+      - name: 安装 GUI 依赖
+        run: npm ci
+        working-directory: gui
+
+      - name: 准备随包资源（codec.js / zipentry.js / 插画）
+        run: node prepare-assets.js
+        working-directory: gui
+
+      - name: 聚合测试（CLI + GUI 核心 + 互通 + Electron selftest）
+        run: npm test
