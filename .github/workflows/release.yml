@@ -168,7 +168,7 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: |
-          xvfb-run -a -s "-screen 0 1280x1024x24" "gui/dist/MiscJar-${{ matrix.platform }}-${{ matrix.arch }}/MiscJar" --selftest
+          xvfb-run -a -s "-screen 0 1280x1024x24" "gui/dist/MiscJar-${{ matrix.platform }}-${{ matrix.arch }}/MiscJar" --selftest --no-sandbox --disable-dev-shm-usage
           node test/check-selftest.js
 
       - name: 生成压缩包（Windows）

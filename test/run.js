@@ -9,6 +9,12 @@ const { check } = require('./check-selftest');
 const ROOT = path.join(__dirname, '..');
 const GUI = path.join(ROOT, 'gui');
 const ELECTRON_CLI = path.join(GUI, 'node_modules', 'electron', 'cli.js');
+// Linux 的 chrome-sandbox 需要 root:root + 4755; CI/容器里通常没有, 而 app 内 appendSwitch 太晚
+// (Chromium 在 main.js 执行前就已检查 SUID sandbox), 必须在启动参数里关掉。
+const ELECTRON_LAUNCH = [ELECTRON_CLI, '.'];
+if (process.platform === 'linux') {
+    ELECTRON_LAUNCH.push('--no-sandbox', '--disable-dev-shm-usage');
+}
 let failed = 0;
 
 function suite(name, cwd, args) {
@@ -32,7 +38,7 @@ console.log('\n=== Electron selftest ===');
 const shots = path.join(os.tmpdir(), 'miscjar-selftest');
 fs.rmSync(shots, { recursive: true, force: true });
 try {
-    execFileSync('node', [ELECTRON_CLI, '.', '--selftest'], { cwd: GUI, stdio: 'inherit', timeout: 240000 });
+    execFileSync('node', [...ELECTRON_LAUNCH, '--selftest'], { cwd: GUI, stdio: 'inherit', timeout: 240000 });
 } catch (e) {
     failed++;
     console.log('--- Electron selftest: 进程退出码 ' + e.status + ' ---');
