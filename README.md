@@ -97,7 +97,7 @@ Windows 解压后双击 `MiscJar.exe`；macOS 解压后打开 `MiscJar.app`（�
 
 ## 构建与发布
 
-桌面版由 GitHub Actions 在六个原生平台（Windows / macOS / Linux × x64 / arm64）构建：推送 `v*` tag 触发 [`.github/workflows/release.yml`](.github/workflows/release.yml)，跑全量测试 → 打包 → 打包版 selftest 验收 → 发布 zip / tar.gz 与 `SHA256SUMS.txt`。日常 push / PR 由 [`ci.yml`](.github/workflows/ci.yml) 跑同一套测试。
+桌面版由 GitHub Actions 在六个原生平台（Windows / macOS / Linux × x64 / arm64）构建：推送 `v*` tag 触发 [`.github/workflows/release.yml`](.github/workflows/release.yml)，跑全量测试 → 打包 → 打包版 selftest 验收 → 发布 zip / tar.gz 与 `SHA256SUMS.txt`。日常 push / PR 由 [`ci.yml`](.github/workflows/ci.yml) 在同样六个平台跑测试并打包验收。
 
 本地打包：`cd gui && npm run package`（默认当前平台；也可以 `node make-package.js darwin arm64` 指定目标）。
 
