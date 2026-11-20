@@ -4,6 +4,7 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { check } = require('./check-selftest');
 
 const ROOT = path.join(__dirname, '..');
 const GUI = path.join(ROOT, 'gui');
@@ -36,19 +37,12 @@ try {
     console.log('--- Electron selftest: 进程退出码 ' + e.status + ' ---');
 }
 const logPath = path.join(shots, 'result.log');
-if (!fs.existsSync(logPath)) {
+const err = check(logPath);
+if (err) {
     failed++;
-    console.log('--- Electron selftest: 缺 result.log ---');
+    console.log('--- Electron selftest: ' + err + ' ---');
 } else {
-    const log = fs.readFileSync(logPath, 'utf8');
-    const need = ['state0', 'state1', 'state2', 'state3', 'state4', 'state5', '"scrollTop":400', 'rowProbe', 'rows5', 'done'];
-    const missing = need.filter((k) => !log.includes(k));
-    if (missing.length) {
-        failed++;
-        console.log('--- Electron selftest: result.log 缺少关键断言: ' + missing.join(', ') + ' ---');
-    } else {
-        console.log('--- Electron selftest: 通过 ---');
-    }
+    console.log('--- Electron selftest: 通过 ---');
 }
 
 console.log('\n======== 总结果: ' + (failed ? '失败 (' + failed + ' 个套件未过)' : '全部通过') + ' ========');

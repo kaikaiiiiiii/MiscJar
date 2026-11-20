@@ -51,6 +51,21 @@
 - **网盘实测通过** —— 上传、扫描、分享、下载、还原，一整轮跑通。
 - **全本地** —— 不联网、不上传、无遥测。
 
+## 下载
+
+不用装环境，直接从 [Releases](https://github.com/kaikaiiiiiii/miscJar/releases/latest) 下载对应平台：
+
+| 平台 | 文件 |
+|---|---|
+| Windows x64 | `MiscJar-vX.Y.Z-windows-x64.zip` |
+| Windows arm64 | `MiscJar-vX.Y.Z-windows-arm64.zip` |
+| macOS Apple Silicon | `MiscJar-vX.Y.Z-macos-arm64.zip` |
+| macOS Intel | `MiscJar-vX.Y.Z-macos-x64.zip` |
+| Linux x64 | `MiscJar-vX.Y.Z-linux-x64.tar.gz` |
+| Linux arm64 | `MiscJar-vX.Y.Z-linux-arm64.tar.gz` |
+
+Windows 解压后双击 `MiscJar.exe`；macOS 解压后打开 `MiscJar.app`（未签名，首次打开需右键 →「打开」）；Linux 解压后运行 `./MiscJar`。每个 release 附 `SHA256SUMS.txt`。
+
 <div align="center">
   <img src="docs/assets/gui.png" alt="谜罐桌面版：空态、待打包、120 个条目的长列表" width="100%">
 </div>
@@ -78,7 +93,13 @@
 - **网盘策略会变**：今天的实测通过，不代表明天仍然通过。
 - **还原会覆盖**：目标位置已有同名文件时直接覆盖，不提示、不备份。
 - **不要解不可信的谜罐**：还原路径来自谜罐内容，当前版本没有做 `..` 越界校验。
-- **桌面版仅提供 Windows 打包产物**：其他平台可用源码 `npm start`，但未做打包验证。
+- **桌面版提供六个平台产物**：Windows / macOS / Linux，各含 x64 与 arm64；macOS 版未签名、未公证，首次打开需右键「打开」。
+
+## 构建与发布
+
+桌面版由 GitHub Actions 在六个原生平台（Windows / macOS / Linux × x64 / arm64）构建：推送 `v*` tag 触发 [`.github/workflows/release.yml`](.github/workflows/release.yml)，跑全量测试 → 打包 → 打包版 selftest 验收 → 发布 zip / tar.gz 与 `SHA256SUMS.txt`。日常 push / PR 由 [`ci.yml`](.github/workflows/ci.yml) 跑同一套测试。
+
+本地打包：`cd gui && npm run package`（默认当前平台；也可以 `node make-package.js darwin arm64` 指定目标）。
 
 ## Agents
 

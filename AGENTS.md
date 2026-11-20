@@ -23,14 +23,14 @@ miscJar/
 ├── package.json         # dependencies + scripts.test（开发时测试门禁）
 ├── .gitignore           # 依赖/产物/GUI 构建产物/本地 Fluent 参考底本
 ├── .github/workflows/   # CI（push/PR 测试）+ Release（tag 触发打包发版）
-├── test/                # 开发时测试：cli.test.js（CLI 全量行为 54 项）+ run.js（聚合运行器）
+├── test/                # 开发时测试：cli.test.js（CLI 全量行为 54 项）+ run.js（聚合运行器）+ check-selftest.js（selftest 断言校验，CI 共用）
 ├── gui/                 # Electron GUI 版（另起一套代码，见 gui/README.md）
 │   ├── main.js          # 主进程：440x600 固定窗口 + IPC + --selftest（输出到 %TEMP%\miscjar-selftest）
 │   ├── preload.js       # contextBridge：webUtils.getPathForFile + invoke
 │   ├── renderer.js      # 拖放 / label 虚拟滚动 / 按钮状态机
 │   ├── lib/archive.js   # 核心逻辑：镜像 src/save.js、src/load.js（开发态用 src/codec.js，打包态用随包副本）
 │   ├── prepare-assets.js # 随包资源复制：src/codec.js / src/zipentry.js / miscJar.png → gui/
-│   ├── make-package.js  # 打包脚本（electronZipDir 离线取 Electron zip）
+│   ├── make-package.js  # 打包脚本（支持 platform/arch 参数，electronZipDir 离线取 Electron zip）
 │   └── test/            # core.test.js + interop.test.js
 ├── docs/                # 补充文档
 │   ├── DESIGN.md        # 设计决策记录（为什么这样做）
@@ -134,7 +134,8 @@ run.bat                                  # 双击启动 GUI（首次运行自动
 cd gui && npm install && npm start       # 440x600 窗口；Electron 45（内置 Node 24.22，zstd 可用）
 cd gui && npm test                       # GUI 核心逻辑测试（纯 Node）
 cd gui && npm run selftest               # 无界面自检：状态断言 + 截图到 %TEMP%\miscjar-selftest\
-cd gui && npm run package                # 打包 Windows 可执行 → dist\MiscJar-win32-x64\（离线，见 gui/README.md）
+cd gui && npm run package                # 打包当前平台 → dist\MiscJar-<platform>-<arch>\（离线，见 gui/README.md）
+cd gui && node make-package.js darwin arm64  # 指定目标平台/架构（须在对应平台构建）
 ```
 
 Windows 下两个脚本都有 `#!/usr/bin/env node` shebang，但需用 `node src/save.js` / `node src/load.js` 调用。
@@ -161,8 +162,8 @@ Windows 下两个脚本都有 `#!/usr/bin/env node` shebang，但需用 `node sr
 - 2026-11-20 变更（十五）：`.gitignore` 分组整理，并新增 `gui/vendor/fluentui/` —— 该目录仅作本地样式参考，不参与构建/运行（打包已排除），不随仓库提交。
 - 2026-11-20 变更（十六）：GUI 打包确认走标准 asar：`resources/app.asar`（应用代码）+ `resources/app.asar.unpacked/node_modules/sqlite3/.../node_sqlite3.node`（原生模块由 packager 自动解包）。修复 `make-package.js` 未 ignore `gui/.electron-zip/` 导致 158 MB Electron zip 被打进 app.asar（170 MB → 12 MB）；同时排除 `make-package.js` / `package-lock.json` / `README.md`。打包版 `MiscJar.exe --selftest` 退出码 0，全部状态断言通过。
 - 2026-11-20 变更（十七）：接入 GitHub Actions。`.github/workflows/ci.yml`（push / PR：Windows + Node 24，跑根目录 `npm test`）；`.github/workflows/release.yml`（`v*` tag 或手动触发：全量测试 → `npm run package` → 打包版 selftest 验收 → 生成 `MiscJar-<tag>-win32-x64.zip` + `SHA256SUMS.txt` → 用 `gh` 创建/更新 Release）。新增 `gui/prepare-assets.js`：`start` / `selftest` / `package` 前把 `src/codec.js` / `src/zipentry.js` / `miscJar.png` 复制进 `gui/`（副本已 gitignore）；`make-package.js` 在本地 Electron zip 缺失时改为在线下载（CI 友好）。
-- `docs/DESIGN.md` 是设计决策记录（为什么这样做）；`docs/DATA_FORMAT.md` 是格式权威说明；`docs/KNOWN_ISSUES.md` 是已核实问题清单（不含改进建议）。
-- 本项目**无** lint/format 配置；本地仍**无** git 仓库（发布前需 `git init` 并推送到 GitHub）。CI 见 `.github/workflows/`：push / PR 跑 `npm test`，`v*` tag 触发打包发版。
+- 2026-11-20 变更（十八）：CI / Release 修正并扩到六平台。action 升到 `actions/checkout@v7` / `actions/setup-node@v7`（消除 Node 20 弃用告警）。Release 改为 matrix：`windows-latest`、`windows-11-arm`、`macos-15-intel`、`macos-15`、`ubuntu-24.04`、`ubuntu-24.04-arm`，各在原生平台构建 → 打包版 selftest → 上传 zip / tar.gz 到草稿 Release → publish job 汇总 `SHA256SUMS.txt` 后正式发布。`make-package.js` 支持 `[platform] [arch]` 参数与三平台 Electron 缓存目录。`node-gyp` 以 `^12.1.0` 覆盖 sqlite3 自带的 8.x（VS2026 支持；Windows arm64 无预编译，走源码编译）。新增 `test/check-selftest.js` 统一本地与 CI 的 selftest 断言校验。
+- 本地已初始化 git（origin `git@github.com:kaikaiiiiiii/MiscJar.git`，默认分支 `master`）；CI 见 `.github/workflows/`：push / PR 跑 `npm test`，`v*` tag 触发六平台打包发版。
 - 已验证的错误路径：路径不存在 / 缺少参数 / 未知选项 / 选项缺值 / 多余位置参数 / 源文件读失败（EPERM）/ 产物路径无效 / 非 SQLite 文件 / 缺 `files` 表 / 内容损坏 —— 全部为「一行人话 + 退出码 1 + 不留半成品」。
 - `package.json` 已含 `name` / `version` / `license` / `repository` / `engines` 与 `scripts.test`；发布版本号以此为准（Release 工作流会校验 tag 与 `version` 一致）。
 - 格式版本用 `PRAGMA user_version`；演进只能靠新增列/表保持向后兼容。

@@ -27,5 +27,11 @@
   },
   "dependencies": {
     "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "node-gyp": "^12.1.0"
+  },
+  "overrides": {
+    "node-gyp": "^12.1.0"
   }
 }

@@ -27,14 +27,16 @@ npm run package    # 打包为 Windows 可执行 → dist\MiscJar-win32-x64\Misc
 >
 > Electron 二进制从 GitHub 直连可能建连后 0 字节卡死（国内网络常见）：`npm rebuild electron` 无效时改跑 `node node_modules/electron/install.js`，并前置 `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/` 走 npmmirror 镜像（官方产物的镜像副本，下载后 SHASUMS 校验照常执行）。zip 落入 `@electron/get` 用户缓存后，后续 `npm run package` 仍完全离线。
 
-## 打包 (Windows)
+## 打包（多平台）
 
-`npm run package` 产出 `dist\MiscJar-win32-x64\`（整个目录绿色分发，双击 `MiscJar.exe` 即用）。要点：
+`npm run package` 产出当前平台的 `dist\MiscJar-<platform>-<arch>\`（macOS 为 `MiscJar.app`，Windows / Linux 为可执行文件）。也可指定目标：`node make-package.js darwin arm64`——必须在对应平台构建，原生模块 `sqlite3` 需要匹配目标平台/架构。正式发布由根目录 `.github/workflows/release.yml` 在六个原生 runner 上完成：Windows / macOS / Linux × x64 / arm64。
 
-- **离线可复现**：`make-package.js` 通过 `electronZipDir` 指定本地 Electron zip——优先从 `@electron/get` 的用户缓存（`%LOCALAPPDATA%\electron\Cache\`，首次 `npm install` 成功后即有）复制到 `gui\.electron-zip\`，之后打包不再联网（发行包和 SHASUMS 都不拉）。本地缓存缺失时（如 CI 首次构建）自动回退为在线下载。该目录已被 packager ignore，**不会打进 app.asar**。
+要点：
+
+- **离线可复现**：`make-package.js` 通过 `electronZipDir` 指定本地 Electron zip——优先从 `@electron/get` 的用户缓存（Windows `%LOCALAPPDATA%\electron\Cache\`、macOS `~/Library/Caches/electron`、Linux `~/.cache/electron`，首次 `npm install` 成功后即有）复制到 `gui\.electron-zip\`，之后打包不再联网。本地缓存缺失时（如 CI 首次构建）自动回退为在线下载。该目录已被 packager ignore，**不会打进 app.asar**。
 - **asar 结构**：产物默认 `asar: true`——应用代码在 `resources\app.asar`；`sqlite3` 的 `node_sqlite3.node` 由 packager 自动解包到 `resources\app.asar.unpacked\`，运行时从真实文件加载（原生模块不能直接从 asar 里 `dlopen`）。
 - **随包 codec 与插画**：`prepare-assets.js` 先把 `src/codec.js` / `src/zipentry.js` 与仓库根 `miscJar.png` 拷进 `gui/`（`npm start` / `npm run selftest` / `npm run package` 都会先跑它，副本不进仓库）。因为打包后应用根是 `resources/app.asar`，`lib/archive.js` 里 `require('../../src/codec')` 会逃出应用根（启动即崩）；`archive.js` 开发态取 `src/codec.js`（唯一源）、打包态回退包内副本。
-- **产物验收**：`MiscJar.exe --selftest`——GUI 程序在 Windows 上 console 输出不可靠，自检把 `result.log` 和 6 张截图写到 `%TEMP%\miscjar-selftest\`。已验证打包版：状态断言、虚拟滚动、真实打包/解包、其产物可被 CLI `src/load.js` 逐字节还原。
+- **产物验收**：打包版 `--selftest` 把 `result.log` 与截图写到系统临时目录的 `miscjar-selftest\`；`test/check-selftest.js` 统一校验关键断言（本地 `npm test` 与 CI 共用）。已验证打包版：状态断言、虚拟滚动、真实打包/解包、其产物可被 CLI `src/load.js` 逐字节还原。
 
 ## 结构
 
@@ -48,7 +50,7 @@ gui/
 ├── lib/archive.js  # 核心逻辑 (镜像 src/save.js、src/load.js; 开发态用 src/codec.js, 打包态用随包副本)
 ├── codec.js / zipentry.js / miscJar.png   # prepare-assets.js 从 src/ 或仓库根拷入的随包副本, 勿手改
 ├── prepare-assets.js # 随包资源复制 (start / selftest / package 前自动执行)
-├── make-package.js # 打包脚本 (electronZipDir 离线取 Electron zip)
+├── make-package.js # 打包脚本 (支持 platform/arch 参数, electronZipDir 离线取 Electron zip)
 ├── vendor/fluentui/  # 本地样式参考底本 (只读, 不构建不引用, 打包排除, 已 gitignore 不提交)
 └── test/           # core.test.js + interop.test.js
 ```
