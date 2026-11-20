@@ -16,7 +16,7 @@ npm start          # 打开 440x600 固定窗口
 npm test           # 核心逻辑测试 (纯 Node)
 npm run test:interop   # GUI <-> CLI 互通测试 (产物双向可读写)
 npm run selftest   # 无界面自检: 状态断言 + 截图输出到 %TEMP%\miscjar-selftest\
-npm run package    # 打包为 Windows 可执行 → dist\MiscJar-win32-x64\MiscJar.exe
+npm run package    # 打包当前平台 → dist/MiscJar-<platform>-<arch>/（Windows 下为 MiscJar.exe）
 ```
 
 环境要求：Electron 45（其内置 Node 24.22，支持 `zlib.zstdCompressSync`）；`sqlite3` 走 N-API 预编译，无需为 Electron 重编。

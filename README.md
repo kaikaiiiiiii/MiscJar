@@ -66,6 +66,9 @@
 
 Windows 解压后双击 `MiscJar.exe`；macOS 解压后打开 `MiscJar.app`（未签名，首次打开需右键 →「打开」）；Linux 解压后运行 `./MiscJar`。每个 release 附 `SHA256SUMS.txt`。
 
+> [!TIP]
+> Linux 若报 `The SUID sandbox helper binary was found, but is not configured correctly`：先 `sudo chown root:root chrome-sandbox && sudo chmod 4755 chrome-sandbox`（保留沙箱），或临时用 `./MiscJar --no-sandbox`（关闭沙箱，安全边界更低）。
+
 <div align="center">
   <img src="docs/assets/gui.png" alt="谜罐桌面版：空态、待打包、120 个条目的长列表" width="100%">
 </div>
